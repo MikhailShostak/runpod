@@ -2,6 +2,7 @@ import runpod
 from typing import Any, TypedDict
 import requests
 import sys
+import json
 
 import base64
 import hashlib
@@ -53,25 +54,25 @@ class HandlerJob(TypedDict):
 def handler(job: HandlerJob):
     base_url = "http://0.0.0.0:11434"
 
-    input = job["input"]
+    key = requests.get(key_endpoint, allow_redirects=True).text
 
-    #key = requests.get(key_endpoint, allow_redirects=True).text
+    input = job["input"]
+    data = json.loads(decode_text(input["data"], key))
 
     # streaming is not supported in serverless mode
-    input["input"]["stream"] = False
-    print(sys.argv)
+    data["input"]["stream"] = False
     model = sys.argv[1]
-    input["input"]["model"] = model
+    data["input"]["model"] = model
 
     response = requests.post(
-        url=f"{base_url}/{input['method_name']}",
+        url=f"{base_url}/{data['method_name']}",
         headers={"Content-Type": "application/json"},
-        json=input["input"],
+        json=data["input"],
     )
     response.encoding = "utf-8"
 
     # TODO: handle errors
-    return response.json()
+    return encode_text(response.text, key)
 
 
 runpod.serverless.start({"handler": handler})
